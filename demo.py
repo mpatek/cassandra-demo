@@ -1,16 +1,28 @@
+import hashlib
 import logging
 
 from cassandra.cluster import Cluster
 
 import warehouse
 import items
-from utils import get_hash
+import timeseries
+from utils import item_to_text
 
 logging.basicConfig(level=logging.INFO)
 
 
+def get_hash(identifier):
+    return hashlib.sha224(
+        item_to_text(identifier).encode()
+    ).hexdigest()
+
+
 def get_item_id(item):
     return get_hash((item['id'], 'post'))
+
+
+def get_event_type(event):
+    return get_hash((event['id'], 'post-pageviews'))
 
 
 def main():
@@ -35,8 +47,25 @@ def main():
     items.upsert_item(item_id, item, session)
 
     # changed item, update
+    timeseries.create_table(session)
     item['title'] = 'New title'
     items.upsert_item(item_id, item, session)
+
+    event = {
+        'id': 1234,
+        'pageviews': 100,
+    }
+    event_type = get_event_type(event)
+
+    # new event, insert
+    timeseries.upsert_event(event_type, event, session)
+
+    # unchanged event, update check time
+    timeseries.upsert_event(event_type, event, session)
+
+    # changed event, insert
+    event['pageviews'] = 120
+    timeseries.upsert_event(event_type, event, session)
 
     warehouse.drop_keyspace(keyspace, session)
 

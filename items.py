@@ -89,19 +89,22 @@ def update_item(item_id, item, session):
     )
 
 
-def upsert_item(item_id, item, session):
+def get_item(item_id, session):
     query = """
     SELECT * FROM items WHERE item_id=%s
     """
-    logger.info('Upserting item: %s, %s', item_id, item)
     rows = list(session.execute(query, [item_id]))
     if rows:
-        # Do an update
-        existing_item = item_from_text(rows[0].item)
+        return item_from_text(rows[0].item)
+
+
+def upsert_item(item_id, item, session):
+    logger.info('Upserting item: %s, %s', item_id, item)
+    existing_item = get_item(item_id, session)
+    if existing_item:
         if existing_item == item:
             update_last_check_time(item_id, session)
         else:
             update_item(item_id, item, session)
     else:
-        # Do an insert
         insert_item(item_id, item, session)
