@@ -51,6 +51,10 @@ def main():
     item['title'] = 'New title'
     items.upsert_item(item_id, item, session)
 
+    # fetch item
+    item_from_db = items.get_item(item_id, session)
+    assert item_from_db == item
+
     event = {
         'id': 1234,
         'pageviews': 100,
@@ -66,6 +70,10 @@ def main():
     # changed event, insert
     event['pageviews'] = 120
     timeseries.upsert_event(event_type, event, session)
+
+    # fetch latest event
+    event_from_db, insert_time = timeseries.get_last_event(event_type, session)
+    assert event_from_db == event
 
     warehouse.drop_keyspace(keyspace, session)
 
